@@ -1,0 +1,22 @@
+networks:
+  render:
+
+services:
+  pgsql:
+    container_name: pgsql-render
+    image: postgres:15
+
+    restart: always
+    tty: true
+    ports:
+      - 5432:5432
+    volumes:
+      - ./pgsql/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: render # Nome do banco de dados
+      POSTGRES_USER: austin # Nome do usuário adicional
+      POSTGRES_PASSWORD: 923.Eddy # Senha do usuário adicional
+      SERVICE_TAGS: dev
+      SERVICE_NAME: postgres
+    networks:
+      - render
