@@ -34,16 +34,17 @@ class OrderItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity'         => 'integer',
-            'unit_price'       => 'decimal:2',
-            'discount_percent' => 'decimal:2',
-            'discount_amount'  => 'decimal:2',
-            'iva_rate'         => 'integer',
-            'iva_amount'       => 'decimal:2',
-            'subtotal'         => 'decimal:2',
-            'total_with_iva'   => 'decimal:2',
+            'quantity' => 'integer',
+            'unit_price' => 'double', // <--- Mude aqui
+            'discount_percent' => 'double',
+            'discount_amount' => 'double',
+            'iva_rate' => 'integer',
+            'iva_amount' => 'double',
+            'subtotal' => 'double',
+            'total_with_iva' => 'double',
         ];
     }
+
 
     // ─── Relacionamentos ───────────────────────────────────
 

@@ -37,6 +37,12 @@ return new class extends Migration {
             // FIX: formato corrigido para padrão AGT Angola: "FR A/2026/00001"
             $table->string('invoice_number', 60)->unique();
 
+            // Número do documento devolvido/validado pela AGT — formato
+            // "<documentType> <seriesCode>/<seq>", ex: "FR FR3926S7373N/1"
+            // NOTA: fe_status/fe_request_id/fe_series_code são criados
+            // depois em create_fe_submissions_table.php — não duplicar aqui.
+            $table->string('agt_document_no', 100)->nullable();
+
             // Valores fiscais
             $table->decimal('taxable_amount', 12, 2);   // Base tributável (sem IVA)
             $table->decimal('tax_amount', 12, 2);        // Total de IVA
@@ -55,6 +61,12 @@ return new class extends Migration {
 
             // Auto-referência: nota de crédito que anulou esta factura
             $table->unsignedBigInteger('credit_note_id')->nullable();
+
+            // Auto-referência: nota de débito emitida sobre esta factura
+            $table->unsignedBigInteger('debit_note_id')->nullable();
+
+            // Motivo da NC/ND — usado em referenceInfo.reason no payload AGT
+            $table->string('reference_reason', 255)->nullable();
 
             // Datas obrigatórias AGT
             $table->timestamp('issued_at');
@@ -83,9 +95,14 @@ return new class extends Migration {
             $table->index('status');
         });
 
-        // FK auto-referenciada (nota de crédito → factura original)
+        // FKs auto-referenciadas (NC/ND → factura original)
         Schema::table('invoices', function (Blueprint $table) {
             $table->foreign('credit_note_id')
+                ->references('id')
+                ->on('invoices')
+                ->nullOnDelete();
+
+            $table->foreign('debit_note_id')
                 ->references('id')
                 ->on('invoices')
                 ->nullOnDelete();
@@ -108,6 +125,7 @@ return new class extends Migration {
 
         Schema::table('invoices', function (Blueprint $table) {
             $table->dropForeign(['credit_note_id']);
+            $table->dropForeign(['debit_note_id']);
         });
 
         Schema::dropIfExists('invoices');

@@ -33,10 +33,10 @@ class Order extends Model
     protected function casts(): array
     {
         return [
-            'subtotal' => 'decimal:2',
-            'iva' => 'decimal:2',
-            'discount' => 'decimal:2',
-            'total' => 'decimal:2',
+            'subtotal' => 'double', // <--- Mude aqui
+            'iva' => 'double',      // <--- Mude aqui
+            'discount' => 'double', // <--- Mude aqui
+            'total' => 'double',    // <--- Mude aqui
             'invoice_generated' => 'boolean',
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
@@ -94,4 +94,6 @@ class Order extends Model
     {
         return $query->where('status', 'closed');
     }
+
+
 }

@@ -36,10 +36,13 @@ class Invoice extends Model
         'hash_control',
         'qr_code_data',
         'notes',
-        // NOVO — campos AGT (ver migration 2026_08_30_000000_add_agt_fields_to_invoices_table)
+        // Campos AGT — 'agt_document_no', 'debit_note_id' e 'reference_reason'
+        // vêm de create_invoices_table; 'fe_status', 'fe_request_id' e
+        // 'fe_series_code' vêm de create_fe_submissions_table.
         'agt_document_no',
         'fe_status',
         'fe_request_id',
+        'fe_series_code',
         'debit_note_id',
         'reference_reason',
     ];
@@ -90,6 +93,11 @@ class Invoice extends Model
         return $this->hasMany(InvoiceTaxSummary::class);
     }
 
+    public function feSubmissions(): HasMany
+    {
+        return $this->hasMany(FeSubmission::class);
+    }
+
     // Nota de crédito que anulou esta factura
     public function creditNote(): BelongsTo
     {
@@ -102,7 +110,7 @@ class Invoice extends Model
         return $this->hasMany(Invoice::class, 'credit_note_id');
     }
 
-    // NOVO — espelha creditNote()/creditedInvoices(), mas para Nota de Débito.
+    // Espelha creditNote()/creditedInvoices(), mas para Nota de Débito.
     public function debitNote(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'debit_note_id');
@@ -119,7 +127,7 @@ class Invoice extends Model
         return $this->hasMany(Refund::class, 'credit_note_invoice_id');
     }
 
-    // NOVO — para um recibo (RC/RG): as facturas que este recibo liquida.
+    // Para um recibo (RC/RG): as facturas que este recibo liquida.
     public function paidInvoices(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -130,7 +138,7 @@ class Invoice extends Model
         )->withPivot('amount_paid')->withTimestamps();
     }
 
-    // NOVO — para uma factura (FT/FR/TV): os recibos que a foram liquidando.
+    // Para uma factura (FT/FR/TV): os recibos que a foram liquidando.
     public function settledByReceipts(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -170,7 +178,6 @@ class Invoice extends Model
         return $this->document_type === 'NC';
     }
 
-    // NOVO
     public function isDebitNote(): bool
     {
         return $this->document_type === 'ND';

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\FeSubmission;
 use App\Models\Invoice;
+
 use App\Services\Agt\FeInvoiceService;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class FeInvoiceController extends Controller
@@ -62,5 +64,32 @@ class FeInvoiceController extends Controller
             'request_id' => $submission->request_id,
             'error_list' => $submission->error_list,
         ]);
+    }
+
+    public function listInvoices(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'queryStartDate' => 'required|date',
+            'queryEndDate' => 'required|date|after_or_equal:queryStartDate',
+            'pageNumber' => 'nullable|integer|min:1',
+            'pageSize' => 'nullable|integer|min:1',
+        ]);
+
+        try {
+            $result = $this->feInvoiceService->listInvoices($validated);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function validateInvoice(Invoice $invoice): JsonResponse
+    {
+        try {
+            $result = $this->feInvoiceService->validateDocument($invoice);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }

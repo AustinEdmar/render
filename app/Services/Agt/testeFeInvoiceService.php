@@ -42,39 +42,24 @@ use RuntimeException;
  *    de motivo de isenção). Depende também das colunas tax_exemption_code
  *    em products/invoice_items, que ainda não foram criadas — ver TODO (E).
  *
- * 7. productCode vinha vazio ("") em vez de null quando invoice_items não
- *    tinha product_code preenchido — o operador ?? não intercepta strings
- *    vazias, só null, então o fallback para product_id nunca era
- *    accionado e a AGT rejeitava com "productCode: é obrigatório" /
+ * 7. NOVO: productCode vinha vazio ("") em vez de null quando invoice_items
+ *    não tinha product_code preenchido — o operador ?? não intercepta
+ *    strings vazias, só null, então o fallback para product_id nunca
+ *    era accionado e a AGT rejeitava com "productCode: é obrigatório" /
  *    "deve ter no mínimo 1 caracteres". CORRIGIDO com firstNonBlank().
+ *    AINDA ASSIM: isto é um sintoma — confirme por que a origem das
+ *    linhas de ND (provavelmente uma cópia da factura original) não
+ *    está a preencher product_code; esta correção é uma rede de
+ *    segurança, não resolve a causa dos dados em falta.
  *
- * 8. validação local (validateInvoiceForSubmission) movida para ANTES de
- *    seriesService->nextDocumentNo() em submit(). Antes, um documento com
- *    productCode vazio ou sem referência NC/ND válida só falhava DEPOIS
- *    de já ter consumido um número da série — cada tentativa rejeitada
- *    deixava um buraco na numeração sequencial, o que pode ser sinalizado
- *    como anomalia em auditoria/inspeção da AGT. Agora falha antes de
- *    pedir o número, sempre que o erro for detetável localmente.
- *
- * 9. Guarda contra reenvio duplicado em submit(). Sem isto, chamar
- *    submit() mais que uma vez na mesma Invoice (ex: redispatch manual +
- *    job automático em simultâneo, ou um bug num controller que dispare
- *    o job duas vezes) gera um NOVO documentNo a cada chamada — desperdiça
- *    números de série da AGT e cria documentos fiscais duplicados para o
- *    mesmo documento local. Aconteceu em teste real (Invoice #1 chegou a
- *    ter dois documentNo diferentes: TV.../1 e TV.../2).
- *
- * 10. validateInvoiceForSubmission() para RC/RG agora confirma que CADA
- *     factura em paidInvoices() já tem agt_document_no preenchido — antes
- *     só confirmava que a lista não estava vazia. Sem isto,
- *     buildPaymentReceiptDocument() podia enviar 'originatingON: null' e
- *     a rejeição só aparecia depois de já ter gasto um número de série
- *     do recibo.
- *
- * 11. documentTotals do recibo (buildPaymentReceiptDocument) também
- *     envolvido em abs(), por coerência com buildDocument() — um recibo
- *     nunca deve ter valores negativos, mas deixa de depender disso
- *     implicitamente.
+ * 8. NOVO: validação local (validateInvoiceForSubmission) movida para
+ *    ANTES de seriesService->nextDocumentNo() em submit(). Antes, um
+ *    documento com productCode vazio ou sem referência NC/ND válida
+ *    só falhava DEPOIS de já ter consumido um número da série — cada
+ *    tentativa rejeitada deixava um buraco na numeração sequencial,
+ *    o que pode ser sinalizado como anomalia em auditoria/inspeção da
+ *    AGT. Agora falha antes de pedir o número, sempre que o erro for
+ *    detetável localmente (sem precisar de round-trip à AGT).
  *
  * ATENÇÃO — pontos que ainda precisa de confirmar/ajustar:
  *
@@ -91,10 +76,7 @@ use RuntimeException;
  *
  * E) taxExemptionCode: depende de uma coluna tax_exemption_code em
  *    products e invoice_items, ainda não criada. Até lá, fica sempre
- *    'M01' (placeholder de FORMATO correcto — 3 caracteres, confirmado
- *    pelo erro E03 em produção — mas o CÓDIGO em si ainda não está
- *    validado contra o Anexo 6.4 real da AGT Angola). O antigo
- *    placeholder 'OUT01' tinha 5 caracteres e foi rejeitado pela AGT.
+ *    'OUT01' (placeholder) para qualquer linha ISE.
  *
  * F) documentNo "<tipo> <seriesCode>/<seq>" (ex: "ND ND3926S2480N/1") é
  *    o formato OFICIAL da AGT, confirmado no docblock de
@@ -109,7 +91,7 @@ class FeInvoiceService
         'NC' => 'NC',
         'ND' => 'ND',
         'VD' => 'TV', // convenção interna original da migration ("Venda a Dinheiro")
-        'TV' => 'TV', // OrderController::close() valida 'TV' directamente —
+        'TV' => 'TV', // CORRIGIDO: OrderController::close() valida 'TV' directamente —
         // sem esta chave, um Invoice com document_type='TV' rebentava em
         // submit() com "Tipo de documento 'TV' sem mapeamento AGT."
         'RC' => 'RC',
@@ -131,8 +113,6 @@ class FeInvoiceService
 
     public function submit(Invoice $invoice): FeSubmission
     {
-        // Impede reenvio duplicado da mesma Invoice à AGT — ver nota (9)
-        // no docblock da classe.
         if ($invoice->agt_document_no || in_array($invoice->fe_status, ['pending', 'valid'], true)) {
             throw new RuntimeException(
                 "Invoice#{$invoice->id} já foi submetida à AGT (agt_document_no: "
@@ -140,7 +120,6 @@ class FeInvoiceService
                 . 'Não é permitido reenviar — use pollStatus() para consultar o resultado.'
             );
         }
-
         $invoice->loadMissing(['items', 'taxSummaries', 'customer']);
         $company = Company::firstOrFail();
         $company->nif = $company->nif ?? config('agt.tax_registration_number');
@@ -152,10 +131,9 @@ class FeInvoiceService
         $documentType = self::DOCUMENT_TYPE_MAP[$invoice->document_type]
             ?? throw new RuntimeException("Tipo de documento '{$invoice->document_type}' sem mapeamento AGT.");
 
-        // Validação local ANTES de consumir número da série. Evita queimar
-        // sequência em erros detetáveis sem round-trip à AGT (productCode
-        // em falta, referência NC/ND inexistente, factura paga sem
-        // agt_document_no, etc.).
+        // CORRIGIDO (8): validação local ANTES de consumir número da série.
+        // Evita queimar sequência em erros detetáveis sem round-trip à AGT
+        // (productCode em falta, referência NC/ND inexistente, etc.).
         $this->validateInvoiceForSubmission($invoice, $documentType);
 
         // documentNo no formato exigido pela AGT (obtido via série já autorizada)
@@ -230,6 +208,8 @@ class FeInvoiceService
      */
     private function validateInvoiceForSubmission(Invoice $invoice, string $documentType): void
     {
+
+
         if (in_array($documentType, self::RECEIPT_TYPES, true)) {
             $paidInvoices = method_exists($invoice, 'paidInvoices') ? $invoice->paidInvoices : collect();
 
@@ -240,21 +220,14 @@ class FeInvoiceService
                 );
             }
 
-            // Confirma que CADA factura paga já tem agt_document_no — antes
-            // só se confirmava que a lista não estava vazia, e uma factura
-            // ainda não aceite pela AGT só era detectada depois de já se
-            // ter gasto um número de série do recibo.
             foreach ($paidInvoices as $paid) {
                 if (!$paid->agt_document_no) {
                     throw new RuntimeException(
-                        "Recibo (Invoice#{$invoice->id}): factura #{$paid->id} "
-                        . "({$paid->invoice_number}) ainda não tem agt_document_no — "
-                        . 'não pode ser referenciada num recibo antes de ela própria '
-                        . 'ter sido aceite pela AGT.'
+                        "Recibo (Invoice#{$invoice->id}): factura #{$paid->id} ({$paid->invoice_number}) "
+                        . "ainda não tem agt_document_no — não pode ser referenciada num recibo."
                     );
                 }
             }
-
             return;
         }
 
@@ -352,11 +325,11 @@ class FeInvoiceService
                 'lineNumber' => $lineNumber,
                 // TODO (A): ajuste conforme o tipo real de venda
                 'operationType' => 'TB',
-                // firstNonBlank() trata "" como ausente, ao contrário de ??
-                // que só reage a null. Antes, quando product_code vinha
-                // como string vazia da BD, o fallback para product_id
-                // nunca era accionado e a AGT rejeitava com "productCode:
-                // deve ter no mínimo 1 caracteres".
+                // CORRIGIDO (7): firstNonBlank() trata "" como ausente, ao
+                // contrário de ?? que só reage a null. Antes, quando
+                // product_code vinha como string vazia da BD, o fallback
+                // para product_id nunca era accionado e a AGT rejeitava
+                // com "productCode: deve ter no mínimo 1 caracteres".
                 'productCode' => $this->firstNonBlank($item->product_code, $item->product_id),
                 'productDescription' => $item->description,
                 'quantity' => $this->money(abs((float) $item->quantity), 3),
@@ -372,15 +345,11 @@ class FeInvoiceService
                         'taxCode' => $taxCode,
                         'taxPercentage' => $this->money(abs((float) $item->tax_rate)),
                         'taxContribution' => $this->money(abs(round((float) $item->tax_amount, 2))),
-                        // TODO (E): 'M01' é placeholder de formato correcto (3
-                        // caracteres, como exigido pela AGT — confirmado pelo
-                        // erro E03 em produção: "deve ter no máximo 3
-                        // caracteres"), mas o CÓDIGO em si ainda não está
-                        // confirmado contra o Anexo 6.4 real da AGT Angola.
-                        // Depende também da coluna tax_exemption_code em
-                        // products/invoice_items, que ainda não existe.
+                        // TODO (E): 'OUT01' é placeholder — falta o Anexo 6.4
+                        // da AGT e as colunas tax_exemption_code em
+                        // products/invoice_items.
                         ...($taxCode === 'ISE' ? [
-                            'taxExemptionCode' => $item->tax_exemption_code ?? 'M01',
+                            'taxExemptionCode' => $item->tax_exemption_code ?? 'OUT01',
                         ] : []),
                     ]
                 ],
@@ -456,8 +425,7 @@ class FeInvoiceService
         $customerCountry = $invoice->customer?->country ?? 'AO';
         $documentCompanyName = $invoice->customer?->name ?? 'Consumidor Final';
 
-        // A validação de existência (incluindo agt_document_no de cada
-        // factura paga) já correu em validateInvoiceForSubmission().
+        // A validação de existência já correu em validateInvoiceForSubmission().
         $paidInvoices = method_exists($invoice, 'paidInvoices') ? $invoice->paidInvoices : collect();
 
         $sourceDocuments = [];
@@ -468,18 +436,14 @@ class FeInvoiceService
                     'originatingON' => $paidInvoice->agt_document_no,
                     'documentDate' => $paidInvoice->issued_at->format('Y-m-d'),
                 ],
-                'creditAmount' => $this->money(abs((float) ($paidInvoice->pivot->amount_paid ?? $paidInvoice->total_amount))),
+                'creditAmount' => $this->money($paidInvoice->pivot->amount_paid ?? $paidInvoice->total_amount),
             ];
         }
 
-        // abs() por coerência com buildDocument() — um recibo nunca deve
-        // ter valores negativos, mas deixa de depender disso implicitamente
-        // (os dados de origem podiam, em teoria, trazer valores negativos
-        // por engano).
         $documentTotals = [
-            'taxPayable' => $this->money(abs((float) $invoice->tax_amount)),
-            'netTotal' => $this->money(abs((float) $invoice->taxable_amount)),
-            'grossTotal' => $this->money(abs((float) $invoice->total_amount)),
+            'taxPayable' => $this->money($invoice->tax_amount),
+            'netTotal' => $this->money($invoice->taxable_amount),
+            'grossTotal' => $this->money($invoice->total_amount),
         ];
 
         return [
@@ -626,9 +590,9 @@ class FeInvoiceService
         $documentType = self::DOCUMENT_TYPE_MAP[$invoice->document_type]
             ?? throw new RuntimeException("Tipo de documento '{$invoice->document_type}' sem mapeamento AGT.");
 
-        // Mesma validação local aplicada aqui, para validateDocument()
-        // também falhar cedo em vez de gerar um payload inválido e só
-        // descobrir isso na resposta da AGT.
+        // CORRIGIDO (8): mesma validação local aplicada aqui, para
+        // validateDocument() também falhar cedo em vez de gerar um payload
+        // inválido e só descobrir isso na resposta da AGT.
         $this->validateInvoiceForSubmission($invoice, $documentType);
 
         $provisionalDocumentNo = $invoice->agt_document_no

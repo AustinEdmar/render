@@ -36,6 +36,11 @@ return new class extends Migration {
             $table->unsignedSmallInteger('tax_rate');            // Ex: 14, 5, 0
             $table->string('tax_code', 10)->default('NOR');     // NOR, RED, ISE, EXC, OUT
             $table->string('tax_exemption_reason')->nullable(); // Obrigatório se taxa = 0
+            // CORRIGIDO: 'exemption_reason' é texto livre para exibição/impressão,
+            // não é o que a AGT espera no payload. O campo taxExemptionCode
+            // (Anexo 6.4 AGT) exige um código de 3 letras do catálogo oficial —
+            // obrigatório sempre que tax_code = 'ISE'.
+            $table->string('tax_exemption_code', 3)->nullable();
 
             $table->decimal('net_amount', 12, 2);   // Valor sem IVA (base tributável da linha)
             $table->decimal('tax_amount', 12, 2);   // Valor do IVA da linha

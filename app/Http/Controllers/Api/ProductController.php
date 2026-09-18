@@ -67,14 +67,16 @@ class ProductController extends Controller
     // ═══════════════════════════════════════════════════════
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
+
+        // dd($request->all());
+        // dd('ENTROU NO STORE');
+
+        $validator = \Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'product_code' => 'nullable|string|max:50|unique:products,product_code',
             'unit' => 'nullable|string|max:20',
-            // FIX: removida validação de 'iva' (campo inexistente)
-            // A taxa de IVA é definida via tax_rate_id (FK para tax_rates)
             'tax_rate_id' => 'required|exists:tax_rates,id',
             'tax_exemption_reason' => 'nullable|string|max:255',
             'stock' => 'required|integer|min:0',
@@ -83,6 +85,15 @@ class ProductController extends Controller
             'is_active' => 'boolean',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
+
+        if ($validator->fails()) {
+            dd([
+                'errors' => $validator->errors()->toArray(),
+                'data' => $request->all(),
+            ]);
+        }
+
+        // dd('PASSOU NA VALIDAÇÃO');
 
         DB::beginTransaction();
 

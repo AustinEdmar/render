@@ -70,7 +70,7 @@ class OrderController extends Controller
     public function getOrders(): JsonResponse
     {
         $orders = Order::with('items.product:id,name,image_path', 'user:id,name')
-            ->where('status', 'open')
+            //->where('status', 'open')
             ->latest()
             ->get();
 
@@ -92,7 +92,7 @@ class OrderController extends Controller
             $query->whereHas(
                 'payments',
                 fn($q) =>
-                $q->where('method_payment', $request->method_payment)
+                    $q->where('method_payment', $request->method_payment)
             );
         }
 
@@ -111,17 +111,17 @@ class OrderController extends Controller
                     ->orWhereHas(
                         'invoice',
                         fn($i) =>
-                        $i->where('invoice_number', 'like', "%{$search}%")
+                            $i->where('invoice_number', 'like', "%{$search}%")
                     )
                     ->orWhereHas(
                         'user',
                         fn($u) =>
-                        $u->where('name', 'like', "%{$search}%")
+                            $u->where('name', 'like', "%{$search}%")
                     )
                     ->orWhereHas(
                         'items.product',
                         fn($p) =>
-                        $p->where('name', 'like', "%{$search}%")
+                            $p->where('name', 'like', "%{$search}%")
                     );
             });
         }
@@ -169,6 +169,11 @@ class OrderController extends Controller
             $taxCode = $product->taxRate?->tax_code ?? 'ISE';
             $exemption = $product->tax_exemption_reason
                 ?? $product->taxRate?->exemption_reason;
+            // NOVO: código de isenção (Anexo 6.4 AGT), obrigatório no payload
+            // AGT quando taxCode = 'ISE'. Separado de tax_exemption_reason
+            // (texto livre, só para exibição/impressão).
+            $exemptionCode = $product->tax_exemption_code
+                ?? $product->taxRate?->exemption_code;
 
             $item = OrderItem::where('order_id', $order->id)
                 ->where('product_id', $product->id)
@@ -202,6 +207,8 @@ class OrderController extends Controller
                     'iva_rate' => $ivaRate,
                     'tax_code' => $taxCode,
                     'tax_exemption_reason' => $exemption,
+                    // NOVO
+                    'tax_exemption_code' => $exemptionCode,
                     'iva_amount' => $ivaAmount,
                     'subtotal' => $subtotal,
                     'total_with_iva' => $subtotal + $ivaAmount,
@@ -267,7 +274,9 @@ class OrderController extends Controller
             $product = Product::lockForUpdate()->findOrFail($item->product_id);
             $stockBefore = $product->stock;
 
-            if ($item->quantity > $qty) {
+            $itemWillBeDeleted = $item->quantity <= $qty;
+
+            if (!$itemWillBeDeleted) {
                 $newQty = $item->quantity - $qty;
                 $subtotal = round($newQty * $item->unit_price, 2);
                 $ivaAmount = round($subtotal * ($item->iva_rate / 100), 2);
@@ -279,16 +288,11 @@ class OrderController extends Controller
                     'total_with_iva' => $subtotal + $ivaAmount,
                 ]);
             } else {
-                $qty = $item->quantity;
+                $qty = $item->quantity; // devolve a quantidade total do item
                 $item->delete();
-
-                if ($order->items()->count() === 0) {
-                    $order->delete();
-                    DB::commit();
-                    return response()->json(['message' => 'Pedido cancelado (sem itens).']);
-                }
             }
 
+            // ✅ Devolve o stock e regista o movimento SEMPRE, antes de qualquer decisão sobre o pedido
             $product->increment('stock', $qty);
 
             StockMovement::create([
@@ -300,6 +304,13 @@ class OrderController extends Controller
                 'stock_after' => $product->fresh()->stock,
                 'note' => 'Item decrementado no pedido #' . $orderId,
             ]);
+
+            // Só agora, depois do stock já estar garantido, verifica se o pedido ficou vazio
+            if ($itemWillBeDeleted && $order->items()->count() === 0) {
+                $order->delete();
+                DB::commit();
+                return response()->json(['message' => 'Pedido cancelado (sem itens). Stock devolvido.']);
+            }
 
             $this->recalcOrder($order);
             DB::commit();
@@ -679,6 +690,9 @@ class OrderController extends Controller
 
         $now = now();
 
+
+
+        // OrderController::generateInvoice()
         $invoice = Invoice::create([
             'order_id' => $order->id,
             'customer_id' => $customerId,
@@ -692,11 +706,16 @@ class OrderController extends Controller
             'tax_amount' => $taxAmount,
             'total_amount' => $totalAmount,
             'discount_amount' => $order->discount,
-            'paid_amount' => $totalAmount,
+            // CORRIGIDO: só FR/TV nascem pagas — são recibo+factura no mesmo
+            // documento, por definição. FT é "a crédito": fica por saldar até
+            // um RC/RG ser emitido depois. Sem isto, amount_outstanding nasce
+            // sempre em 0 e o endpoint /invoices/receipt fica impossível de usar
+            // para qualquer FT gerada pelo POS.
+            'paid_amount' => in_array($documentType, ['FR', 'TV'], true) ? $totalAmount : 0,
             'currency' => $currency,
             'status' => 'issued',
             'issued_at' => $now,
-            'delivered_at' => $now, // obrigatório AGT
+            'delivered_at' => $now,
         ]);
 
         // Linhas da factura (snapshots imutáveis)
@@ -715,6 +734,11 @@ class OrderController extends Controller
                 'tax_rate' => $item->iva_rate,
                 'tax_code' => $item->tax_code,
                 'tax_exemption_reason' => $item->tax_exemption_reason,
+                // NOVO: propaga o código de isenção do snapshot da venda
+                // (order_items) para o snapshot da factura (invoice_items) —
+                // é daqui que o FeInvoiceService::buildDocument() lê
+                // $item->tax_exemption_code para preencher taxExemptionCode.
+                'tax_exemption_code' => $item->tax_exemption_code,
                 'net_amount' => $item->subtotal,
                 'tax_amount' => $item->iva_amount,
                 'gross_amount' => $item->total_with_iva,

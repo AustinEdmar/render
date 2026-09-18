@@ -13,7 +13,10 @@ return new class extends Migration {
 
             // SAF-T Angola
             $table->string('tax_type', 10)->default('IVA'); // IVA, IS, NS
-            $table->string('tax_code', 10)->unique();       // NOR, RED, ISE, EXC, OUT
+            // CORRIGIDO: tax_code sozinho já não é único — passa a existir
+            // mais que uma linha com o mesmo código (ex: RED a 5% e a 7%),
+            // distinguidas pela percentagem. Ver unique composto no fim.
+            $table->string('tax_code', 10); // NOR, INT, RED, ISE, OUT (enum fixa da AGT)
 
             $table->string('description');
             $table->decimal('tax_percentage', 8, 2)->default(0);
@@ -24,14 +27,21 @@ return new class extends Migration {
             $table->string('exemption_reason')->nullable();
 
             $table->timestamps();
+
+            // CORRIGIDO: unicidade passa a ser por código + percentagem,
+            // não só por código — permite RED/5% e RED/7% coexistirem.
+            $table->unique(['tax_code', 'tax_percentage']);
         });
 
         // Seed com as taxas de IVA vigentes em Angola (Lei 17/19 — CIVA Angola)
-        // NOR  = taxa normal 14%
-        // RED  = taxa reduzida (produtos alimentares essenciais, medicamentos)
-        // ISE  = isento (artigo 12.º do CIVA)
-        // EXC  = regime de exclusão (artigo 2.º do CIVA — pequenos contribuintes)
-        // OUT  = outra taxa / casos especiais
+        //
+        // CORRIGIDO: tax_code só aceita os 5 valores da enumeração oficial
+        // da AGT para taxType=IVA (confirmado na doc registarFactura):
+        //   NOR, INT, RED, ISE, OUT
+        // "RED5", "RED7" e "EXC" NÃO existem nessa enumeração — a AGT
+        // rejeita com erro E18 ("combinação não permitida de campos").
+        // A percentagem já vai no seu próprio campo (tax_percentage),
+        // não deve ser colada ao código.
         DB::table('tax_rates')->insert([
             [
                 'tax_type' => 'IVA',
@@ -46,8 +56,9 @@ return new class extends Migration {
             ],
             [
                 'tax_type' => 'IVA',
-                'tax_code' => 'RED5',
-                'description' => 'Taxa reduzida de IVA',
+                // CORRIGIDO: era 'RED5'
+                'tax_code' => 'RED',
+                'description' => 'Taxa reduzida de IVA (5%)',
                 'tax_percentage' => 5.00,
                 'country' => 'AO',
                 'is_active' => true,
@@ -55,11 +66,11 @@ return new class extends Migration {
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-
             [
                 'tax_type' => 'IVA',
-                'tax_code' => 'RED7',
-                'description' => 'Taxa reduzida de IVA',
+                // CORRIGIDO: era 'RED7'
+                'tax_code' => 'RED',
+                'description' => 'Taxa reduzida de IVA (7%)',
                 'tax_percentage' => 7.00,
                 'country' => 'AO',
                 'is_active' => true,
@@ -74,32 +85,15 @@ return new class extends Migration {
                 'tax_percentage' => 0.00,
                 'country' => 'AO',
                 'is_active' => true,
-                'exemption_reason' => 'Artigo 12.º do CIVA',
+                // TODO: texto livre, não é o que a AGT exige. O campo
+                // taxExemptionCode do payload (Anexo 6.4 da AGT) tem de
+                // ser um código curto do catálogo oficial — ainda por
+                // confirmar. 'exemption_reason' aqui fica só para exibição
+                // interna/impressão, não é enviado directamente à AGT.
+                'exemption_reason' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ],
-            [
-                'tax_type' => 'IVA',
-                'tax_code' => 'EXC',
-                'description' => 'Regime de exclusão de IVA',
-                'tax_percentage' => 0.00,
-                'country' => 'AO',
-                'is_active' => true,
-                'exemption_reason' => 'Artigo 2.º do CIVA — Regime de Exclusão',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'tax_type' => 'IVA',
-                'tax_code' => 'OUT',
-                'description' => 'Outra taxa / caso especial',
-                'tax_percentage' => 0.00,
-                'country' => 'AO',
-                'is_active' => true,
-                'exemption_reason' => 'Taxa especial — verificar legislação aplicável',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+            ]
         ]);
     }
 

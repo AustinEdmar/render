@@ -117,6 +117,9 @@ class InvoiceController extends Controller
     // ═══════════════════════════════════════════════════════
     public function cancel(Request $request, $id)
     {
+
+        // dd($id);
+
         $request->validate([
             'reason' => 'required|string|max:500',
         ]);
@@ -283,6 +286,11 @@ class InvoiceController extends Controller
             'items.*.tax_rate' => 'required|numeric|min:0',
             'items.*.tax_code' => 'required|string|max:10',
             'items.*.product_id' => 'nullable|exists:products,id',
+            // NOVO: se não há product_id (encargo avulso, ex: "Taxa de entrega"),
+            // o cliente TEM de mandar um product_code próprio — a AGT exige
+            // sempre um productCode não-vazio por linha, e sem produto real no
+            // catálogo não há de onde o sistema o inferir sozinho.
+            'items.*.product_code' => 'required_without:items.*.product_id|nullable|string|max:60',
         ]);
 
         DB::beginTransaction();
@@ -319,7 +327,7 @@ class InvoiceController extends Controller
             $ndNumber = sprintf('ND %s.%d/%05d', $series, $year, $number);
             $now = now();
 
-            $itemsInput = collect($request->items)->map(function ($i) {
+            /* $itemsInput = collect($request->items)->map(function ($i) {
                 $subtotal = round($i['quantity'] * $i['unit_price'], 2);
                 $taxAmount = round($subtotal * ($i['tax_rate'] / 100), 2);
 
@@ -327,6 +335,25 @@ class InvoiceController extends Controller
                     'subtotal' => $subtotal,
                     'tax_amount' => $taxAmount,
                     'gross_amount' => $subtotal + $taxAmount,
+                ]);
+            }); */
+
+            $itemsInput = collect($request->items)->map(function ($i) {
+                $subtotal = round($i['quantity'] * $i['unit_price'], 2);
+                $taxAmount = round($subtotal * ($i['tax_rate'] / 100), 2);
+
+                // Se veio product_id, o product_code CANÓNICO é o do catálogo,
+                // não o que o cliente eventualmente tenha mandado solto — evita
+                // dois NDs sobre o mesmo produto saírem com productCode diferentes.
+                $resolvedProductCode = !empty($i['product_id'])
+                    ? (\App\Models\Product::whereKey($i['product_id'])->value('product_code') ?: ($i['product_code'] ?? null))
+                    : ($i['product_code'] ?? null);
+
+                return array_merge($i, [
+                    'subtotal' => $subtotal,
+                    'tax_amount' => $taxAmount,
+                    'gross_amount' => $subtotal + $taxAmount,
+                    'resolved_product_code' => $resolvedProductCode,
                 ]);
             });
 
