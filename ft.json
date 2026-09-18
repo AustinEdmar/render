@@ -1,0 +1,59 @@
+{
+    "schemaVersion": "1.2",
+    "submissionUUID": "cdade9f5-dfe5-4feb-8cad-7c54d0fd2773",
+    "taxRegistrationNumber": "5000413178",
+    "submissionTimeStamp": "2026-08-29T20:28:58+00:00",
+    "softwareInfo": {
+        "softwareInfoDetail": {
+            "productId": "KambaPos",
+            "productVersion": "1.0.1",
+            "softwareValidationNumber": "C_134",
+            "signatureVersion": 1
+        },
+        "jwsSoftwareSignature": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJwcm9kdWN0SWQiOiJLYW1iYVBvcyIsInByb2R1Y3RWZXJzaW9uIjoiMS4wLjEiLCJzb2Z0d2FyZVZhbGlkYXRpb25OdW1iZXIiOiJDXzEzNCIsInNpZ25hdHVyZVZlcnNpb24iOjF9.SonqWsHOyrR8a9JQIaTghAIJULqJ0UxlpJ5vrSogfTKWj19K_mu-N7mOUKRoeYF9TwAwqK5OojEkCRUsXiVyMrpbuSGFYlPP9WN5AA8C0QmPBXmb34EDmI7J1Na4PC3G1tOgbmCUdIX-738kxiUad3I1DR431gMjEnKMqyjsSxVyxeOn84SlKgDTj-zoBE9Ptrl3SwkmxpNgKZ1gjM3ZLnuzhDEwnXFViB00Z2CXBb6vo1acMqvW4aebUuP1vfDibRSuyFOjh8nqCwBR3k1KLNpUAbWc2R_xvOIG0WXbhTjVCZQvC3AOjV1nJBnlNu4LBiudrIuyjIUezum9EJHrzw"
+    },
+    "numberOfEntries": 1,
+    "documents": [
+        {
+            "documentNo": "FT FT2026S1\/1",
+            "taxRegistrationNumber": "5000413178",
+            "documentType": "FT",
+            "documentDate": "2026-08-29",
+            "customerTaxID": "999999999",
+            "customerCountry": "AO",
+            "companyName": "DEM DIGITAL",
+            "documentTotals": {
+                "taxPayable": 70,
+                "netTotal": 500,
+                "grossTotal": 570
+            },
+            "documentStatus": "N",
+            "jwsDocumentSignature": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJkb2N1bWVudE5vIjoiRlQgRlQyMDI2UzEvMSIsInRheFJlZ2lzdHJhdGlvbk51bWJlciI6IjUwMDA0MTMxNzgiLCJkb2N1bWVudFR5cGUiOiJGVCIsImRvY3VtZW50RGF0ZSI6IjIwMjYtMDgtMjkiLCJjdXN0b21lclRheElEIjoiOTk5OTk5OTk5IiwiY3VzdG9tZXJDb3VudHJ5IjoiQU8iLCJjb21wYW55TmFtZSI6IkRFTSBESUdJVEFMIiwiZG9jdW1lbnRUb3RhbHMiOnsidGF4UGF5YWJsZSI6NzAsIm5ldFRvdGFsIjo1MDAsImdyb3NzVG90YWwiOjU3MH19.GE28Vk5Xq8BCNhzYakww60hDHVv3M6PAfsYcwa1hdPVOzCDJDe0H3aekWpiHE4hYuZqq1nHjKBn4ooAV-Ea6yxx1Ls_UCjIf9duDJJ9VSt1FOHYGpQBF6bm3qvjKbTP1GUhoUmibyS87IfH-reotqbUKOmBDPWuIe_bak6Z40C_EGm7Tp6kMAsj55ixXpn6rPOZXays7jAcjhSgMETNagB44Qf0zTMZSpXBiSrGQWnka1nSTj-OaXfh-IGsioQcNdhzzhMcizgoOTDD4OoKPxNaPuS_1n-E8zd9XY6vfs_lDNTVsbf2sl--1Rpwp861P8o7J6lP58LibYsUaF0cVUA",
+            "eacCode": "12345",
+            "systemEntryDate": "2026-08-29T20:28:58+00:00",
+            "lines": [
+                {
+                    "lineNumber": 1,
+                    "productCode": "PROD001",
+                    "productDescription": "Produto Exemplo",
+                    "quantity": 2,
+                    "unitOfMeasure": "UN",
+                    "unitPrice": 250,
+                    "unitPriceBase": 250,
+                    "debitAmount": 0,
+                    "creditAmount": 500,
+                    "taxes": [
+                        {
+                            "taxType": "IVA",
+                            "taxCountryRegion": "AO",
+                            "taxCode": "NOR",
+                            "taxPercentage": 14,
+                            "taxContribution": 70
+                        }
+                    ],
+                    "settlementAmount": 0
+                }
+            ]
+        }
+    ]
+}

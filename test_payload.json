@@ -1,0 +1,19 @@
+{
+    "schemaVersion": "1.2",
+    "submissionUUID": "b0b73eef-6832-44d6-a7b2-07a9829e68f9",
+    "taxRegistrationNumber": "5000413178",
+    "submissionTimeStamp": "2026-07-24T00:55:26+00:00",
+    "softwareInfo": {
+        "softwareInfoDetail": {
+            "productId": "KambaPos",
+            "productVersion": "1.0.0",
+            "softwareValidationNumber": "C_134"
+        },
+        "jwsSoftwareSignature": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJwcm9kdWN0SWQiOiJLYW1iYVBvcyIsInByb2R1Y3RWZXJzaW9uIjoiMS4wLjAiLCJzb2Z0d2FyZVZhbGlkYXRpb25OdW1iZXIiOiJDXzEzNCJ9.EWkTj0Cprkm75G0flLnqzkoHcEMzuNv3zohqAB9HQBpYGv6rOec80NtkL_I5ujvbrj6UYrVvjrmO1T0lS0SkKnU7uepnWFpLsvw-q-vM17mHrcUs6KO3cX_47cWQ3VFczS9QgK796sUk6K2nVqZciD3i3Tnqjj9j5Fgki5Rxcitz9xAoYwALCChflidQO3MG_BRUnZMVarxJtOdwXK97MKW6JxoCywZSSXRqsyO0Z-zKJxnOIdw_FI-QX6Eq1opbPiMoTNkI_kWLTxzFUldDW4UiT5geUV_MsyQIsrAkYHb3nkbmpbllkBDL5JXACEg50YsvJqVr0PKvvErGewGR6g"
+    },
+    "seriesYear": "2026",
+    "documentType": "FT",
+    "establishmentNumber": "SEDE",
+    "jwsSignature": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ0YXhSZWdpc3RyYXRpb25OdW1iZXIiOiI1MDAzMTI0NTkyIiwiZXN0YWJsaXNobWVudE51bWJlciI6IlNFREUiLCJzZXJpZXNZZWFyIjoiMjAyNiIsImRvY3VtZW50VHlwZSI6IkZUIn0.gBi0Pm0BaK_-4cP1l50CrY6HhJSzdWilO9cL0jHj75y_NGXqBjA-DfFaHvjYH3V24m94BIn6aNwFZAjHv7yrJKdMRjSgFkoPkPgoTToEBPy1vfRIZzr-kfnlxENHepW-j02l8pl6EFt9AxRDjc3bIv7_4Pv_XqiuLbXypgE5Jy9R6ez8f87UZR8ZB9d0vpp7n6l5wvfiXV_CG4aPab9UlZfH409UQ_wA8oGijN7ylDR8e_vUDMJJ6XAM9oZlzgEaQ6kHvyKwfcKjod4dteXmtmD4Ax34y83vH6PmsclWGcLOioU2qPTwZ3jCsbqiVbEDrJmS6mwPqGB84R1d0t9wMw",
+    "seriesContingencyIndicator": "N"
+}
